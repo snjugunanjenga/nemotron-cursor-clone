@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+requests
+python-dotenv
+gradio
+langchain
+langchain-community
+chromadb
+pydantic
+# Optional heavy dependency: vllm
+# To install vllm, use: pip install -r requirements-optional.txt

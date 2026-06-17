@@ -1,0 +1,50 @@
+version: '3.8'
+services:
+  triton:
+    # Official Triton image may require NVIDIA NGC login and GPUs
+    # Replace image with a local/trusted build if needed
+    image: nvcr.io/nvidia/tritonserver:23.05-py3
+    restart: unless-stopped
+    ports:
+      - "8001:8001" # gRPC
+      - "8000:8000" # HTTP
+      - "8002:8002" # metrics
+    volumes:
+      - ./triton_model_repo:/models
+    environment:
+      - TRITON_MODEL_REPOSITORY=/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  torchserve:
+    image: pytorch/torchserve:latest
+    ports:
+      - "8080:8080" # inference
+      - "8081:8081" # management
+    volumes:
+      - ./torchserve_model_store:/model-store
+    command: ["torchserve","--start","--model-store","/model-store","--ts-config","/model-store/config.properties"]
+
+  fastapi:
+    build: ./fastapi
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./fastapi:/app
+    environment:
+      - MODEL_DIR=/models
+
+  playwright-runner:
+    image: mcr.microsoft.com/playwright:focal
+    depends_on:
+      - fastapi
+    working_dir: /tests
+    volumes:
+      - ./playwright:/tests
+    command: bash -lc "npx playwright test --reporter=list"
+
