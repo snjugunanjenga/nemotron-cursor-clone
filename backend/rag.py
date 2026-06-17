@@ -26,7 +26,16 @@ class RAG:
 
     def create_collection(self, name: str = 'default'):
         if CHROMADB_AVAILABLE and not self.collection:
-            self.collection = self.client.create_collection(name=name)
+            try:
+                # Try to create; if collection exists, get it instead
+                self.collection = self.client.create_collection(name=name)
+            except Exception:
+                # Collection likely already exists; try to get it
+                try:
+                    self.collection = self.client.get_collection(name=name)
+                except Exception:
+                    # If both fail, fall back to in-memory
+                    pass
             return self.collection
         # in-memory: reset list
         self._documents = []

@@ -11,6 +11,7 @@ import time
 from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
 
@@ -30,6 +31,25 @@ app = FastAPI()
 VLLM_API_URL = os.getenv('VLLM_API_URL')  # if set, proxy requests here
 MODEL_NAME = os.getenv('MODEL_NAME', 'nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16')
 VLLM_MAX_TOKENS = int(os.getenv('VLLM_MAX_TOKENS', '512'))
+
+# Whitelist origin regex to match github.dev and app.github.dev subdomains
+import re
+_allow_origin_regex = re.compile(r"^https://([a-z0-9-]+\.)*(github\.dev|app\.github\.dev)(:\d+)?$")
+
+# Add CORS middleware using the same whitelist pattern (use compiled pattern string)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=_allow_origin_regex.pattern,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["Access-Control-Allow-Origin"],
+)
+
+def _is_origin_allowed(origin: str) -> bool:
+    if not origin:
+        return False
+    return bool(_allow_origin_regex.match(origin))
 
 # If vllm available, instantiate a singleton LLM for in-process generation
 llm = None
@@ -98,12 +118,20 @@ async def chat(req: ChatCompletionRequest, request: Request):
     if VLLM_API_URL:
         proxied_url = f"{VLLM_API_URL}/v1/chat/completions"
         try:
+            origin = request.headers.get('origin')
+            # If streaming, stream from proxied server and include CORS header when appropriate
             if stream:
                 proxied = requests.post(proxied_url, json=req.dict(), stream=True, timeout=300)
-                return StreamingResponse(proxied.iter_lines(decode_unicode=True), media_type='text/event-stream')
+                headers = {}
+                if origin and _is_origin_allowed(origin):
+                    headers['Access-Control-Allow-Origin'] = origin
+                return StreamingResponse(proxied.iter_lines(decode_unicode=True), media_type='text/event-stream', headers=headers)
             else:
                 r = requests.post(proxied_url, json=req.dict(), timeout=300)
-                return JSONResponse(r.json())
+                headers = {}
+                if origin and _is_origin_allowed(origin):
+                    headers['Access-Control-Allow-Origin'] = origin
+                return JSONResponse(r.json(), headers=headers)
         except Exception as e:
             return JSONResponse({'error': f'proxy error: {e}'}, status_code=502)
 

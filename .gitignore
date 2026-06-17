@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .env
 .env.*
+venv
 
 # model checkpoints / large artifacts
 models/

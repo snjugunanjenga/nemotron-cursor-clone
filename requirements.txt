@@ -6,5 +6,6 @@ gradio
 langchain
 langchain-community
 chromadb
-vllm
 pydantic
+# Optional heavy dependency: vllm
+# To install vllm, use: pip install -r requirements-optional.txt
