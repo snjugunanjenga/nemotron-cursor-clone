@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+requests
+python-dotenv
+gradio
+langchain
+langchain-community
+chromadb
+vllm
+pydantic

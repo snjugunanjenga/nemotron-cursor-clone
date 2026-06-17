@@ -1,0 +1,20 @@
+# ignore python artifacts
+__pycache__/
+*.pyc
+.env
+.env.*
+
+# model checkpoints / large artifacts
+models/
+model_store/
+torchserve_model_store/
+triton_model_repo/
+*.mar
+*.pt
+*.bin
+
+# notebooks
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
